@@ -7,6 +7,7 @@ const char* password = "";
 
 int relayPin = D1;
 unsigned long lastHeartbeat = 0;
+unsigned long heartbeatTimeout = 600000;
 bool relayStatus = false;
 
 ESP8266WebServer server(80);
@@ -43,7 +44,7 @@ void setup() {
 }
 
 void loop() {
-    if (millis() - lastHeartbeat > 300000) {
+    if (millis() - lastHeartbeat > heartbeatTimeout) {
         digitalWrite(relayPin, LOW);
         relayStatus = false;
     }
