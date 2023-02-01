@@ -5,16 +5,17 @@
 const char* ssid = "";
 const char* password = "";
 
-int relayPin = D1;
-unsigned long lastHeartbeat = 0;
-unsigned long heartbeatTimeout = 600000;
+const int relayPin = D1;
+const unsigned long heartbeatTimeout = 600000; // 10 minutes
 bool relayStatus = false;
+unsigned long lastHeartbeat = 0;
 
 ESP8266WebServer server(80);
 
 void setup() {
     pinMode(relayPin, OUTPUT);
     digitalWrite(relayPin, LOW);
+    relayStatus = false;
 
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
@@ -22,9 +23,19 @@ void setup() {
         Serial.println("Connecting to WiFi...");
     }
     Serial.println("Connected to WiFi");
-    if (MDNS.begin("esp8266")) {
-        Serial.println("MDNS responder started");
-    }
+    MDNS.begin("esp8266");
+    Serial.println("MDNS responder started");
+
+    server.on("/status", []() {
+    String response = "<html><body>";
+    response += "<h1>Relay and Wi-Fi Status</h1><br>";
+    response += "Relay: ";
+    response += relayStatus ? "Enabled<br>" : "Disabled<br>";
+    response += "Wi-Fi: ";
+    response += WiFi.status() == WL_CONNECTED ? "Connected<br>" : "Not Connected<br>";
+    response += "</body></html>";
+    server.send(200, "text/html", response);
+    });
 
     server.on("/command/enable", []() {
         digitalWrite(relayPin, HIGH);
@@ -44,10 +55,20 @@ void setup() {
 }
 
 void loop() {
-    if (millis() - lastHeartbeat > heartbeatTimeout) {
+    if (WiFi.status() != WL_CONNECTED) {
+        digitalWrite(relayPin, LOW);
+        relayStatus = false;
+        WiFi.begin(ssid, password);
+        while (WiFi.status() != WL_CONNECTED) {
+            delay(1000);
+            Serial.println("Connecting to WiFi...");
+        }
+        Serial.println("Connected to WiFi");
+    }
+
+    if (relayStatus && (millis() - lastHeartbeat > heartbeatTimeout)) {
         digitalWrite(relayPin, LOW);
         relayStatus = false;
     }
-    MDNS.update();
     server.handleClient();
 }
