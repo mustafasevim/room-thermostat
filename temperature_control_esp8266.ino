@@ -70,5 +70,6 @@ void loop() {
         digitalWrite(relayPin, LOW);
         relayStatus = false;
     }
+    MDNS.update();
     server.handleClient();
 }
